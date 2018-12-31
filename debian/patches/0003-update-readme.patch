@@ -1,0 +1,22 @@
+From: Adam Saponara <as@php.net>
+Date: Fri, 28 Dec 2018 03:20:55 -0500
+Subject: update readme
+
+---
+ README.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/README.md b/README.md
+index bc1c069..7628463 100644
+--- a/README.md
++++ b/README.md
+@@ -48,7 +48,8 @@ Runs on Linux, Windows (cygwin), FreeBSD, and MacOS.
+ 
+ ### Building
+ 
+-    $ sudo apt -y install git build-essential libtool automake
++    $ sudo apt install git build-essential libtool automake # or equivalent
++    $
+     $ git clone --recursive https://github.com/adsr/mle.git
+     $ cd mle
+     $ make mle_vendor=1

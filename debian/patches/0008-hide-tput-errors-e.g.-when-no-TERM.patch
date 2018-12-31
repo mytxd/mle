@@ -1,0 +1,21 @@
+From: Adam Saponara <as@php.net>
+Date: Fri, 28 Dec 2018 15:10:31 -0500
+Subject: hide tput errors (e.g., when no TERM)
+
+---
+ tests/run.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tests/run.sh b/tests/run.sh
+index fadaa4f..72af290 100755
+--- a/tests/run.sh
++++ b/tests/run.sh
+@@ -11,7 +11,7 @@ for t in $(find . -mindepth 2 -executable -type f); do
+     tshort=$(basename $t)
+     tfull=$(readlink -f $t)
+     tdir=$(dirname $tfull)
+-    tput bold; echo TEST $tshort; tput sgr0
++    tput bold 2>/dev/null; echo TEST $tshort; tput sgr0 2>/dev/null
+     pushd $tdir &>/dev/null
+     ./$tshort
+     ec=$?

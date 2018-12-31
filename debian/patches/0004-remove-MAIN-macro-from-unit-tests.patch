@@ -1,0 +1,1088 @@
+From: Adam Saponara <as@php.net>
+Date: Fri, 28 Dec 2018 13:41:50 -0500
+Subject: remove MAIN macro from unit tests
+
+---
+ tests/unit/test.h                            | 28 ++++++++++++++--------------
+ tests/unit/test_bline_delete.c               |  6 ++++--
+ tests/unit/test_bline_get_col.c              |  6 ++++--
+ tests/unit/test_bline_insert.c               |  6 ++++--
+ tests/unit/test_buffer_add_mark.c            |  6 ++++--
+ tests/unit/test_buffer_add_srule.c           |  6 ++++--
+ tests/unit/test_buffer_delete.c              |  6 ++++--
+ tests/unit/test_buffer_destroy.c             |  6 ++++--
+ tests/unit/test_buffer_get.c                 |  6 ++++--
+ tests/unit/test_buffer_get_bline.c           |  6 ++++--
+ tests/unit/test_buffer_get_bline_col.c       |  6 ++++--
+ tests/unit/test_buffer_get_offset.c          |  6 ++++--
+ tests/unit/test_buffer_insert.c              |  6 ++++--
+ tests/unit/test_buffer_new.c                 |  6 ++++--
+ tests/unit/test_buffer_redo.c                |  6 ++++--
+ tests/unit/test_buffer_register.c            |  6 ++++--
+ tests/unit/test_buffer_remove_srule.c        |  6 ++++--
+ tests/unit/test_buffer_replace.c             |  6 ++++--
+ tests/unit/test_buffer_set.c                 |  6 ++++--
+ tests/unit/test_buffer_set_callback.c        |  6 ++++--
+ tests/unit/test_buffer_set_tab_width.c       |  6 ++++--
+ tests/unit/test_buffer_substr.c              |  6 ++++--
+ tests/unit/test_buffer_undo.c                |  6 ++++--
+ tests/unit/test_mark_clone.c                 |  6 ++++--
+ tests/unit/test_mark_delete_after.c          |  6 ++++--
+ tests/unit/test_mark_delete_before.c         |  6 ++++--
+ tests/unit/test_mark_delete_between_mark.c   |  6 ++++--
+ tests/unit/test_mark_delete_between_mark_2.c |  6 ++++--
+ tests/unit/test_mark_find_bracket_pair.c     |  6 ++++--
+ tests/unit/test_mark_get_between_mark.c      |  6 ++++--
+ tests/unit/test_mark_get_offset.c            |  6 ++++--
+ tests/unit/test_mark_insert_after.c          |  6 ++++--
+ tests/unit/test_mark_insert_before.c         |  6 ++++--
+ tests/unit/test_mark_is_at_word_bound.c      |  6 ++++--
+ tests/unit/test_mark_is_gt.c                 |  6 ++++--
+ tests/unit/test_mark_lettered.c              |  6 ++++--
+ tests/unit/test_mark_move_bol.c              |  6 ++++--
+ tests/unit/test_mark_move_bracket_pair.c     |  6 ++++--
+ tests/unit/test_mark_move_by.c               |  6 ++++--
+ tests/unit/test_mark_move_col.c              |  6 ++++--
+ tests/unit/test_mark_move_eol.c              |  6 ++++--
+ tests/unit/test_mark_move_next_re.c          |  6 ++++--
+ tests/unit/test_mark_move_next_str.c         |  6 ++++--
+ tests/unit/test_mark_move_offset.c           |  6 ++++--
+ tests/unit/test_mark_move_prev_re.c          |  6 ++++--
+ tests/unit/test_mark_move_prev_str.c         |  6 ++++--
+ tests/unit/test_mark_move_to.c               |  6 ++++--
+ tests/unit/test_mark_move_vert.c             |  6 ++++--
+ tests/unit/test_mark_set_pcre_ovector.c      |  6 ++++--
+ tests/unit/test_mark_swap_with_mark.c        |  6 ++++--
+ tests/unit/test_recalloc.c                   |  6 ++++--
+ 51 files changed, 214 insertions(+), 114 deletions(-)
+
+diff --git a/tests/unit/test.h b/tests/unit/test.h
+index fcbc39b..56e234b 100644
+--- a/tests/unit/test.h
++++ b/tests/unit/test.h
+@@ -7,27 +7,27 @@
+ #include "mlbuf.h"
+ 
+ editor_t _editor;
++extern char* str;
++void test(buffer_t* buf, mark_t* cur);
+ 
+ // TODO run each test with buffer_set_slabbed + buffer_insert
+ 
+-#define MAIN(str, body) \
+-int main(int argc, char **argv) { \
+-    buffer_t* buf; \
+-    mark_t* cur; \
+-    memset(&_editor, 0, sizeof(editor_t)); \
+-    setlocale(LC_ALL, ""); \
+-    buf = buffer_new(); \
+-    buffer_insert(buf, 0, (char*)str, (bint_t)strlen(str), NULL); \
+-    cur = buffer_add_mark(buf, NULL, 0); \
+-    (void)cur; \
+-    body \
+-    buffer_destroy(buf); \
+-    return EXIT_SUCCESS; \
++int main(int argc, char **argv) {
++    buffer_t* buf;
++    mark_t* cur;
++    memset(&_editor, 0, sizeof(editor_t));
++    setlocale(LC_ALL, "");
++    buf = buffer_new();
++    buffer_insert(buf, 0, (char*)str, (bint_t)strlen(str), NULL);
++    cur = buffer_add_mark(buf, NULL, 0);
++    test(buf, cur);
++    buffer_destroy(buf);
++    return EXIT_SUCCESS;
+ }
+ 
+ #define ASSERT(testname, expected, observed) do { \
+     if ((expected) == (observed)) { \
+-        printf("  \x1b[32mOK \x1b[0m %s\n", (testname)); \
++        printf("  \x1b[32mOK\x1b[0m %s\n", (testname)); \
+     } else { \
+         printf("  \x1b[31mERR\x1b[0m %s expected=%" PRIdPTR " observed=%" PRIdPTR "\n", (testname), (intptr_t)(expected), (intptr_t)(observed)); \
+         exit(EXIT_FAILURE); \
+diff --git a/tests/unit/test_bline_delete.c b/tests/unit/test_bline_delete.c
+index bba82e6..5e55559 100644
+--- a/tests/unit/test_bline_delete.c
++++ b/tests/unit/test_bline_delete.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char *data;
+     bint_t data_len;
+ 
+@@ -27,4 +29,4 @@ MAIN("hello\nworld",
+     bline_delete(buf->first_line, 2, 3);
+     buffer_get(buf, &data, &data_len);
+     ASSERT("eatnl", 0, strncmp(data, "eol", data_len));
+-)
++}
+diff --git a/tests/unit/test_bline_get_col.c b/tests/unit/test_bline_get_col.c
+index f180f2b..b477216 100644
+--- a/tests/unit/test_bline_get_col.c
++++ b/tests/unit/test_bline_get_col.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("h\xc3\x85llo \xe4\xb8\x96\xe7\x95\x8c", // "hallo ww"
++char* str = "h\xc3\x85llo \xe4\xb8\x96\xe7\x95\x8c"; // "hallo ww"
++
++void test(buffer_t* buf, mark_t* cur) {
+ //    01   2   34567   8   9   10  11  12
+ //    01       23456           7
+     bint_t col;
+@@ -33,5 +35,5 @@ MAIN("h\xc3\x85llo \xe4\xb8\x96\xe7\x95\x8c", // "hallo ww"
+ 
+     bline_get_col(buf->first_line, 13, &col);
+     ASSERT("13", 8, col);
+-)
++}
+ 
+diff --git a/tests/unit/test_bline_insert.c b/tests/unit/test_bline_insert.c
+index d783be4..3cb89b6 100644
+--- a/tests/unit/test_bline_insert.c
++++ b/tests/unit/test_bline_insert.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char *data;
+     bint_t data_len;
+ 
+@@ -23,4 +25,4 @@ MAIN("hello\nworld",
+     bline_insert(buf->first_line->next, 6, " ", 1, NULL);
+     buffer_get(buf, &data, &data_len);
+     ASSERT("oob", 0, strncmp(data, "hello\namy's\n world", data_len));
+-)
++}
+diff --git a/tests/unit/test_buffer_add_mark.c b/tests/unit/test_buffer_add_mark.c
+index 1221774..f878604 100644
+--- a/tests/unit/test_buffer_add_mark.c
++++ b/tests/unit/test_buffer_add_mark.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_t* mark;
+ 
+     mark = buffer_add_mark(buf, NULL, 0);
+@@ -10,5 +12,5 @@ MAIN("hello\nworld",
+     mark = buffer_add_mark(buf, buf->first_line->next, 5);
+     ASSERT("mark1bline", 1, mark->bline == buf->first_line->next ? 1 : 0);
+     ASSERT("mark1col", 5, mark->col);
+-)
++}
+ 
+diff --git a/tests/unit/test_buffer_add_srule.c b/tests/unit/test_buffer_add_srule.c
+index dd878fe..1d607f6 100644
+--- a/tests/unit/test_buffer_add_srule.c
++++ b/tests/unit/test_buffer_add_srule.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     bint_t i;
+     srule_t* srule1;
+     srule_t* srule2;
+@@ -31,4 +33,4 @@ MAIN("hello\nworld",
+ 
+     srule_destroy(srule1);
+     srule_destroy(srule2);
+-)
++}
+diff --git a/tests/unit/test_buffer_delete.c b/tests/unit/test_buffer_delete.c
+index e6516d4..8c09b77 100644
+--- a/tests/unit/test_buffer_delete.c
++++ b/tests/unit/test_buffer_delete.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char *data;
+     bint_t data_len;
+ 
+@@ -19,5 +21,5 @@ MAIN("hello\nworld",
+     buffer_delete(buf, 0, 7);
+     buffer_get(buf, &data, &data_len);
+     ASSERT("all", 0, strncmp(data, "", data_len));
+-)
++}
+ 
+diff --git a/tests/unit/test_buffer_destroy.c b/tests/unit/test_buffer_destroy.c
+index 71a7d92..1aee0e6 100644
+--- a/tests/unit/test_buffer_destroy.c
++++ b/tests/unit/test_buffer_destroy.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     ASSERT("yes", 1, 1);
+-)
++}
+ 
+diff --git a/tests/unit/test_buffer_get.c b/tests/unit/test_buffer_get.c
+index b519e6e..15857b1 100644
+--- a/tests/unit/test_buffer_get.c
++++ b/tests/unit/test_buffer_get.c
+@@ -1,10 +1,12 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char* data;
+     bint_t data_len;
+ 
+     buffer_get(buf, &data, &data_len);
+     ASSERT("len", 11, data_len);
+     ASSERT("get", 0, strncmp(data, "hello\nworld", data_len));
+-)
++}
+diff --git a/tests/unit/test_buffer_get_bline.c b/tests/unit/test_buffer_get_bline.c
+index 46e191e..d374123 100644
+--- a/tests/unit/test_buffer_get_bline.c
++++ b/tests/unit/test_buffer_get_bline.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("0\n1\n2\n3\n4\n",
++char* str = "0\n1\n2\n3\n4\n";
++
++void test(buffer_t* buf, mark_t* cur) {
+     bint_t i;
+     bline_t* line;
+     bline_t* line2;
+@@ -8,4 +10,4 @@ MAIN("0\n1\n2\n3\n4\n",
+         buffer_get_bline(buf, i, &line2);
+         ASSERT("line", line, line2);
+     }
+-)
++}
+diff --git a/tests/unit/test_buffer_get_bline_col.c b/tests/unit/test_buffer_get_bline_col.c
+index be8bd4c..35639c4 100644
+--- a/tests/unit/test_buffer_get_bline_col.c
++++ b/tests/unit/test_buffer_get_bline_col.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     bline_t* line;
+     bint_t col;
+ 
+@@ -23,5 +25,5 @@ MAIN("hello\nworld",
+     buffer_get_bline_col(buf, 99, &line, &col);
+     ASSERT("oobline", buf->first_line->next, line);
+     ASSERT("oobcol", 5, col);
+-)
++}
+ 
+diff --git a/tests/unit/test_buffer_get_offset.c b/tests/unit/test_buffer_get_offset.c
+index a638633..d3ce54f 100644
+--- a/tests/unit/test_buffer_get_offset.c
++++ b/tests/unit/test_buffer_get_offset.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     bint_t offset;
+ 
+     buffer_get_offset(buf, buf->first_line, 0, &offset);
+@@ -17,4 +19,4 @@ MAIN("hello\nworld",
+ 
+     buffer_get_offset(buf, buf->first_line->next, 6, &offset);
+     ASSERT("noob", 11, offset);
+-)
++}
+diff --git a/tests/unit/test_buffer_insert.c b/tests/unit/test_buffer_insert.c
+index 68f1de5..e2ffc58 100644
+--- a/tests/unit/test_buffer_insert.c
++++ b/tests/unit/test_buffer_insert.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char *data;
+     bint_t data_len;
+     bint_t nchars;
+@@ -23,5 +25,5 @@ MAIN("hello\nworld",
+     buffer_insert(buf, 20, "!", 1, NULL);
+     buffer_get(buf, &data, &data_len);
+     ASSERT("oob", 0, strncmp(data, "\xe4\xb8\x96\xe7\x95\x8c\nshel\n\nlo\nworld!", data_len));
+-)
++}
+ 
+diff --git a/tests/unit/test_buffer_new.c b/tests/unit/test_buffer_new.c
+index 71a7d92..1aee0e6 100644
+--- a/tests/unit/test_buffer_new.c
++++ b/tests/unit/test_buffer_new.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     ASSERT("yes", 1, 1);
+-)
++}
+ 
+diff --git a/tests/unit/test_buffer_redo.c b/tests/unit/test_buffer_redo.c
+index 8504d05..8755590 100644
+--- a/tests/unit/test_buffer_redo.c
++++ b/tests/unit/test_buffer_redo.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hi",
++char* str = "hi";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char* data;
+     bint_t data_len;
+ 
+@@ -15,4 +17,4 @@ MAIN("hi",
+     buffer_redo(buf);
+     buffer_get(buf, &data, &data_len);
+     ASSERT("ins", 0, strncmp(data, "yi", data_len));
+-)
++}
+diff --git a/tests/unit/test_buffer_register.c b/tests/unit/test_buffer_register.c
+index b3b6e14..08148a4 100644
+--- a/tests/unit/test_buffer_register.c
++++ b/tests/unit/test_buffer_register.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hi",
++char* str = "hi";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char* reg;
+     size_t reg_len;
+ 
+@@ -20,4 +22,4 @@ MAIN("hi",
+     buffer_register_get(buf, 'a', 0, &reg, &reg_len);
+     ASSERT("clr1", 0, reg_len);
+     ASSERT("clr2", 1, reg != NULL ? 1 : 0);
+-)
++}
+diff --git a/tests/unit/test_buffer_remove_srule.c b/tests/unit/test_buffer_remove_srule.c
+index a67f860..d3c2771 100644
+--- a/tests/unit/test_buffer_remove_srule.c
++++ b/tests/unit/test_buffer_remove_srule.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     bint_t i;
+     srule_t* srule;
+     srule = srule_new_single("world", sizeof("world")-1, 0, 1, 2);
+@@ -15,4 +17,4 @@ MAIN("hello\nworld",
+         ASSERT("line2bg", 0, buf->first_line->next->chars[i].style.bg);
+     }
+     srule_destroy(srule);
+-)
++}
+diff --git a/tests/unit/test_buffer_replace.c b/tests/unit/test_buffer_replace.c
+index 3da622c..e9a6ec0 100644
+--- a/tests/unit/test_buffer_replace.c
++++ b/tests/unit/test_buffer_replace.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("lineA\n\nline2\nline3\n",
++char* str = "lineA\n\nline2\nline3\n";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char *data;
+     bint_t data_len;
+ 
+@@ -75,4 +77,4 @@ MAIN("lineA\n\nline2\nline3\n",
+     buffer_undo(buf);
+     buffer_get(buf, &data, &data_len);
+     ASSERT("undo", 0, strncmp(data, "\nblixey\nbjerkX", data_len));
+-)
++}
+diff --git a/tests/unit/test_buffer_set.c b/tests/unit/test_buffer_set.c
+index 88e9d92..6008351 100644
+--- a/tests/unit/test_buffer_set.c
++++ b/tests/unit/test_buffer_set.c
+@@ -1,9 +1,11 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char *data;
+     bint_t data_len;
+     buffer_set(buf, "goodbye\nvoid", 12);
+     buffer_get(buf, &data, &data_len);
+     ASSERT("set", 0, strncmp("goodbye\nvoid", data, data_len));
+-)
++}
+diff --git a/tests/unit/test_buffer_set_callback.c b/tests/unit/test_buffer_set_callback.c
+index f851c95..dd063c5 100644
+--- a/tests/unit/test_buffer_set_callback.c
++++ b/tests/unit/test_buffer_set_callback.c
+@@ -20,11 +20,13 @@ static void callback_fn(buffer_t* buf, baction_t* bac, void* udata) {
+     ASSERT("bac_data", 0, strncmp("te\nst", bac->data, bac->data_len));
+ }
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     int udata;
+     udata = 42;
+     global_buf = buf;
+     global_udata = &udata;
+     buffer_set_callback(buf, callback_fn, (void*)global_udata);
+     buffer_insert(buf, 0, "te\nst", 5, NULL);
+-)
++}
+diff --git a/tests/unit/test_buffer_set_tab_width.c b/tests/unit/test_buffer_set_tab_width.c
+index e517d13..3a72ff9 100644
+--- a/tests/unit/test_buffer_set_tab_width.c
++++ b/tests/unit/test_buffer_set_tab_width.c
+@@ -2,7 +2,9 @@
+ 
+ #define comma ,
+ 
+-MAIN("he\tllo\t\t",
++char* str = "he\tllo\t\t";
++
++void test(buffer_t* buf, mark_t* cur) {
+     bint_t i;
+     bint_t char_vcols_4[8] = {0 comma  1 comma  2 comma  4 comma  5 comma  6 comma  7 comma  8};
+     bint_t char_vcols_2a[8] = {0 comma  1 comma  2 comma  4 comma  5 comma  6 comma  7 comma  8};
+@@ -34,4 +36,4 @@ MAIN("he\tllo\t\t",
+     for (i = 0; i < buf->first_line->char_count; i++) {
+         ASSERT("vcol2b", char_vcols_2b[i], buf->first_line->chars[i].vcol);
+     }
+-)
++}
+diff --git a/tests/unit/test_buffer_substr.c b/tests/unit/test_buffer_substr.c
+index c28a30a..fdb0344 100644
+--- a/tests/unit/test_buffer_substr.c
++++ b/tests/unit/test_buffer_substr.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char *data;
+     bint_t data_len;
+     bint_t nchars;
+@@ -10,4 +12,4 @@ MAIN("hello\nworld",
+     ASSERT("nchars", 3, nchars);
+     ASSERT("substr", 0, strncmp("o\nw", data, data_len));
+     free(data);
+-)
++}
+diff --git a/tests/unit/test_buffer_undo.c b/tests/unit/test_buffer_undo.c
+index 3ecc125..82a92af 100644
+--- a/tests/unit/test_buffer_undo.c
++++ b/tests/unit/test_buffer_undo.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hi",
++char* str = "hi";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char* data;
+     bint_t data_len;
+ 
+@@ -13,4 +15,4 @@ MAIN("hi",
+     buffer_undo(buf);
+     buffer_get(buf, &data, &data_len);
+     ASSERT("ins", 0, strncmp(data, "hi", data_len));
+-)
++}
+diff --git a/tests/unit/test_mark_clone.c b/tests/unit/test_mark_clone.c
+index 02612b4..0a636b0 100644
+--- a/tests/unit/test_mark_clone.c
++++ b/tests/unit/test_mark_clone.c
+@@ -1,10 +1,12 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_t* other;
+     mark_clone(cur, &other);
+     ASSERT("neq", 1, other != cur ? 1 : 0);
+     ASSERT("next", 1, other == cur->next ? 1 : 0);
+     ASSERT("line", cur->bline, other->bline);
+     ASSERT("col", cur->col, other->col);
+-)
++}
+diff --git a/tests/unit/test_mark_delete_after.c b/tests/unit/test_mark_delete_after.c
+index a4d8c40..2028227 100644
+--- a/tests/unit/test_mark_delete_after.c
++++ b/tests/unit/test_mark_delete_after.c
+@@ -1,10 +1,12 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char* data;
+     bint_t data_len;
+     mark_move_beginning(cur);
+     mark_delete_after(cur, 1);
+     buffer_get(buf, &data, &data_len);
+     ASSERT("dela", 0, strncmp("ello\nworld", data, data_len));
+-)
++}
+diff --git a/tests/unit/test_mark_delete_before.c b/tests/unit/test_mark_delete_before.c
+index 814767d..45d0c2d 100644
+--- a/tests/unit/test_mark_delete_before.c
++++ b/tests/unit/test_mark_delete_before.c
+@@ -1,10 +1,12 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char* data;
+     bint_t data_len;
+     mark_move_end(cur);
+     mark_delete_before(cur, 1);
+     buffer_get(buf, &data, &data_len);
+     ASSERT("delb", 0, strncmp("hello\nworl", data, data_len));
+-)
++}
+diff --git a/tests/unit/test_mark_delete_between_mark.c b/tests/unit/test_mark_delete_between_mark.c
+index 5b639a8..52ccf0f 100644
+--- a/tests/unit/test_mark_delete_between_mark.c
++++ b/tests/unit/test_mark_delete_between_mark.c
+@@ -1,10 +1,12 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_t* other;
+     other = buffer_add_mark(buf, NULL, 0);
+     mark_move_beginning(cur);
+     mark_move_end(other);
+     mark_delete_between_mark(cur, other);
+     ASSERT("count", 0, buf->byte_count);
+-)
++}
+diff --git a/tests/unit/test_mark_delete_between_mark_2.c b/tests/unit/test_mark_delete_between_mark_2.c
+index 66ca18d..74c5d97 100644
+--- a/tests/unit/test_mark_delete_between_mark_2.c
++++ b/tests/unit/test_mark_delete_between_mark_2.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("  hello {\n    world\n  }",
++char* str = "  hello {\n    world\n  }";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_t* other;
+     other = buffer_add_mark(buf, NULL, 0);
+     mark_move_next_str(cur, "{", 1);
+@@ -14,4 +16,4 @@ MAIN("  hello {\n    world\n  }",
+     ASSERT("olin", 0, cur->bline->line_index);
+     ASSERT("ocol", 9, cur->col);
+     mark_destroy(other);
+-)
++}
+diff --git a/tests/unit/test_mark_find_bracket_pair.c b/tests/unit/test_mark_find_bracket_pair.c
+index 1f0b49e..59972ca 100644
+--- a/tests/unit/test_mark_find_bracket_pair.c
++++ b/tests/unit/test_mark_find_bracket_pair.c
+@@ -1,10 +1,12 @@
+ #include "test.h"
+ 
+-MAIN("[ bracket [ test ] ] xyz",
++char* str = "[ bracket [ test ] ] xyz";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_beginning(cur);
+     mark_move_bracket_pair(cur, 1024);
+     ASSERT("col1", 19, cur->col);
+     mark_move_by(cur, -2);
+     mark_move_bracket_pair(cur, 1024);
+     ASSERT("col2", 10, cur->col);
+-)
++}
+diff --git a/tests/unit/test_mark_get_between_mark.c b/tests/unit/test_mark_get_between_mark.c
+index 9b0831b..598a4b6 100644
+--- a/tests/unit/test_mark_get_between_mark.c
++++ b/tests/unit/test_mark_get_between_mark.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char* str;
+     bint_t str_len;
+     mark_t* other;
+@@ -10,4 +12,4 @@ MAIN("hello\nworld",
+     mark_get_between_mark(cur, other, &str, &str_len);
+     ASSERT("len", 11, str_len);
+     ASSERT("eq", 0, strncmp(str, "hello\nworld", str_len));
+-)
++}
+diff --git a/tests/unit/test_mark_get_offset.c b/tests/unit/test_mark_get_offset.c
+index 3733f97..6bf9f3c 100644
+--- a/tests/unit/test_mark_get_offset.c
++++ b/tests/unit/test_mark_get_offset.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     bint_t offset;
+ 
+     mark_move_end(cur);
+@@ -10,4 +12,4 @@ MAIN("hello\nworld",
+     mark_move_beginning(cur);
+     mark_get_offset(cur, &offset);
+     ASSERT("offset", 0, offset);
+-)
++}
+diff --git a/tests/unit/test_mark_insert_after.c b/tests/unit/test_mark_insert_after.c
+index 0cac368..8c482e6 100644
+--- a/tests/unit/test_mark_insert_after.c
++++ b/tests/unit/test_mark_insert_after.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char* data;
+     bint_t data_len;
+     mark_move_beginning(cur);
+@@ -8,4 +10,4 @@ MAIN("hello\nworld",
+     buffer_get(buf, &data, &data_len);
+     ASSERT("insa", 0, strncmp("shello\nworld", data, data_len));
+     ASSERT("col", 0, cur->col);
+-)
++}
+diff --git a/tests/unit/test_mark_insert_before.c b/tests/unit/test_mark_insert_before.c
+index 551787f..11fdb8d 100644
+--- a/tests/unit/test_mark_insert_before.c
++++ b/tests/unit/test_mark_insert_before.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     char* data;
+     bint_t data_len;
+     mark_move_beginning(cur);
+@@ -8,4 +10,4 @@ MAIN("hello\nworld",
+     buffer_get(buf, &data, &data_len);
+     ASSERT("insb", 0, strncmp("shello\nworld", data, data_len));
+     ASSERT("col", 1, cur->col);
+-)
++}
+diff --git a/tests/unit/test_mark_is_at_word_bound.c b/tests/unit/test_mark_is_at_word_bound.c
+index c2c26c9..722a9bb 100644
+--- a/tests/unit/test_mark_is_at_word_bound.c
++++ b/tests/unit/test_mark_is_at_word_bound.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("obj->method() yes bob",
++char* str = "obj->method() yes bob";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_beginning(cur); // |obj->method() yes bob
+     ASSERT("l_bol", 1, mark_is_at_word_bound(cur, -1));
+     ASSERT("x_bol", 1, mark_is_at_word_bound(cur, 0));
+@@ -45,4 +47,4 @@ MAIN("obj->method() yes bob",
+     ASSERT("l_eow2", 0, mark_is_at_word_bound(cur, -1));
+     ASSERT("x_eow2", 1, mark_is_at_word_bound(cur, 0));
+     ASSERT("r_eow2", 1, mark_is_at_word_bound(cur, 1));
+-)
++}
+diff --git a/tests/unit/test_mark_is_gt.c b/tests/unit/test_mark_is_gt.c
+index ba45de8..f319a72 100644
+--- a/tests/unit/test_mark_is_gt.c
++++ b/tests/unit/test_mark_is_gt.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_t* other;
+     other = buffer_add_mark(buf, NULL, 0);
+ 
+@@ -12,4 +14,4 @@ MAIN("hello\nworld",
+     mark_move_beginning(other);
+     ASSERT("ngt2", 0, mark_is_gt(other, cur));
+     ASSERT("ngt3", 0, mark_is_gt(cur, other));
+-)
++}
+diff --git a/tests/unit/test_mark_lettered.c b/tests/unit/test_mark_lettered.c
+index ce92a76..4890c5c 100644
+--- a/tests/unit/test_mark_lettered.c
++++ b/tests/unit/test_mark_lettered.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_t* lett1;
+     mark_t* lett2;
+     mark_t* lett3;
+@@ -17,4 +19,4 @@ MAIN("hello\nworld",
+     ASSERT("null", 1, lett3 == NULL ? 1 : 0);
+ 
+     mark_destroy(lett2);
+-)
++}
+diff --git a/tests/unit/test_mark_move_bol.c b/tests/unit/test_mark_move_bol.c
+index dd9c3f4..27d52ae 100644
+--- a/tests/unit/test_mark_move_bol.c
++++ b/tests/unit/test_mark_move_bol.c
+@@ -1,8 +1,10 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_end(cur);
+     mark_move_bol(cur);
+     ASSERT("line", buf->first_line->next, cur->bline);
+     ASSERT("col", 0, cur->col);
+-)
++}
+diff --git a/tests/unit/test_mark_move_bracket_pair.c b/tests/unit/test_mark_move_bracket_pair.c
+index 1f0b49e..59972ca 100644
+--- a/tests/unit/test_mark_move_bracket_pair.c
++++ b/tests/unit/test_mark_move_bracket_pair.c
+@@ -1,10 +1,12 @@
+ #include "test.h"
+ 
+-MAIN("[ bracket [ test ] ] xyz",
++char* str = "[ bracket [ test ] ] xyz";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_beginning(cur);
+     mark_move_bracket_pair(cur, 1024);
+     ASSERT("col1", 19, cur->col);
+     mark_move_by(cur, -2);
+     mark_move_bracket_pair(cur, 1024);
+     ASSERT("col2", 10, cur->col);
+-)
++}
+diff --git a/tests/unit/test_mark_move_by.c b/tests/unit/test_mark_move_by.c
+index 1e469d2..20be25e 100644
+--- a/tests/unit/test_mark_move_by.c
++++ b/tests/unit/test_mark_move_by.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_beginning(cur);
+ 
+     mark_move_by(cur, 1);
+@@ -16,4 +18,4 @@ MAIN("hello\nworld",
+     mark_move_by(cur, -1);
+     ASSERT("col4", 5, cur->col);
+     ASSERT("line4", buf->first_line, cur->bline);
+-)
++}
+diff --git a/tests/unit/test_mark_move_col.c b/tests/unit/test_mark_move_col.c
+index ebf1fc4..eb1a189 100644
+--- a/tests/unit/test_mark_move_col.c
++++ b/tests/unit/test_mark_move_col.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_beginning(cur);
+ 
+     mark_move_col(cur, 5);
+@@ -8,5 +10,5 @@ MAIN("hello\nworld",
+ 
+     mark_move_col(cur, 6);
+     ASSERT("oob", 5, cur->col);
+-)
++}
+ 
+diff --git a/tests/unit/test_mark_move_eol.c b/tests/unit/test_mark_move_eol.c
+index 70038ac..1751186 100644
+--- a/tests/unit/test_mark_move_eol.c
++++ b/tests/unit/test_mark_move_eol.c
+@@ -1,8 +1,10 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_beginning(cur);
+     mark_move_eol(cur);
+     ASSERT("line", buf->first_line, cur->bline);
+     ASSERT("col", 5, cur->col);
+-)
++}
+diff --git a/tests/unit/test_mark_move_next_re.c b/tests/unit/test_mark_move_next_re.c
+index 51abba7..e2e9af4 100644
+--- a/tests/unit/test_mark_move_next_re.c
++++ b/tests/unit/test_mark_move_next_re.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hi\nanna\nbanana",
++char* str = "hi\nanna\nbanana";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_beginning(cur);
+ 
+     mark_move_next_re(cur, "an+a", strlen("an+a"));
+@@ -23,4 +25,4 @@ MAIN("hi\nanna\nbanana",
+     mark_move_next_re(cur, "hi", strlen("hi"));
+     ASSERT("line4", buf->first_line, cur->bline);
+     ASSERT("col4", 0, cur->col);
+-)
++}
+diff --git a/tests/unit/test_mark_move_next_str.c b/tests/unit/test_mark_move_next_str.c
+index aa9e4ff..6c1ae09 100644
+--- a/tests/unit/test_mark_move_next_str.c
++++ b/tests/unit/test_mark_move_next_str.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hi\nana\nbanana",
++char* str = "hi\nana\nbanana";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_beginning(cur);
+ 
+     mark_move_next_str(cur, "ana", strlen("ana"));
+@@ -18,4 +20,4 @@ MAIN("hi\nana\nbanana",
+     mark_move_next_str_nudge(cur, "ana", strlen("ana"));
+     ASSERT("line3", buf->first_line->next->next, cur->bline);
+     ASSERT("col3", 3, cur->col);
+-)
++}
+diff --git a/tests/unit/test_mark_move_offset.c b/tests/unit/test_mark_move_offset.c
+index 91dfc02..dcc193e 100644
+--- a/tests/unit/test_mark_move_offset.c
++++ b/tests/unit/test_mark_move_offset.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_offset(cur, 11);
+     ASSERT("col1", 5, cur->col);
+     ASSERT("line1", buf->first_line->next, cur->bline);
+@@ -12,5 +14,5 @@ MAIN("hello\nworld",
+     mark_move_offset(cur, 12);
+     ASSERT("oobcol", 5, cur->col);
+     ASSERT("oobline", buf->first_line->next, cur->bline);
+-)
++}
+ 
+diff --git a/tests/unit/test_mark_move_prev_re.c b/tests/unit/test_mark_move_prev_re.c
+index bdac5ca..5353a72 100644
+--- a/tests/unit/test_mark_move_prev_re.c
++++ b/tests/unit/test_mark_move_prev_re.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hi\nanna\nbanana",
++char* str = "hi\nanna\nbanana";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_end(cur);
+ 
+     mark_move_prev_re(cur, "an+a", strlen("an+a"));
+@@ -19,4 +21,4 @@ MAIN("hi\nanna\nbanana",
+     mark_move_prev_re(cur, "^", strlen("^"));
+     ASSERT("cflex_line", buf->first_line->next->next, cur->bline);
+     ASSERT("cflex_col", 0, cur->col);
+-)
++}
+diff --git a/tests/unit/test_mark_move_prev_str.c b/tests/unit/test_mark_move_prev_str.c
+index 1eb5f76..2467185 100644
+--- a/tests/unit/test_mark_move_prev_str.c
++++ b/tests/unit/test_mark_move_prev_str.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hi\nana\nbanana",
++char* str = "hi\nana\nbanana";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_end(cur);
+ 
+     mark_move_prev_str(cur, "ana", strlen("ana"));
+@@ -14,4 +16,4 @@ MAIN("hi\nana\nbanana",
+     mark_move_prev_str(cur, "ana", strlen("ana"));
+     ASSERT("line1", buf->first_line->next, cur->bline);
+     ASSERT("col1", 0, cur->col);
+-)
++}
+diff --git a/tests/unit/test_mark_move_to.c b/tests/unit/test_mark_move_to.c
+index 16ff9bc..ff1a05b 100644
+--- a/tests/unit/test_mark_move_to.c
++++ b/tests/unit/test_mark_move_to.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_beginning(cur);
+ 
+     mark_move_to(cur, 0, 0);
+@@ -30,4 +32,4 @@ MAIN("hello\nworld",
+     mark_move_to(cur, 2, 1);
+     ASSERT("oob3lin", buf->first_line->next, cur->bline);
+     ASSERT("oob3col", 1, cur->col);
+-)
++}
+diff --git a/tests/unit/test_mark_move_vert.c b/tests/unit/test_mark_move_vert.c
+index 6988d40..f152f0b 100644
+--- a/tests/unit/test_mark_move_vert.c
++++ b/tests/unit/test_mark_move_vert.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hi\nworld",
++char* str = "hi\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_move_end(cur);
+ 
+     mark_move_vert(cur, 1);
+@@ -13,4 +15,4 @@ MAIN("hi\nworld",
+     ASSERT("noop", buf->first_line, cur->bline);
+     ASSERT("col", 2, cur->col);
+     ASSERT("tcol", 5, cur->target_col);
+-)
++}
+diff --git a/tests/unit/test_mark_set_pcre_ovector.c b/tests/unit/test_mark_set_pcre_ovector.c
+index fa67767..af18325 100644
+--- a/tests/unit/test_mark_set_pcre_ovector.c
++++ b/tests/unit/test_mark_set_pcre_ovector.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("Ervin won gold at age 35!",
++char* str = "Ervin won gold at age 35!";
++
++void test(buffer_t* buf, mark_t* cur) {
+     int ovector[6] = {0};
+     int rc = 0;
+     bline_t* bline;
+@@ -20,4 +22,4 @@ MAIN("Ervin won gold at age 35!",
+     ASSERT("vec1b", 24, ovector[1]);
+     ASSERT("vec2a", 22, ovector[2]);
+     ASSERT("vec2b", 24, ovector[3]);
+-)
++}
+diff --git a/tests/unit/test_mark_swap_with_mark.c b/tests/unit/test_mark_swap_with_mark.c
+index 185c637..0a0596a 100644
+--- a/tests/unit/test_mark_swap_with_mark.c
++++ b/tests/unit/test_mark_swap_with_mark.c
+@@ -1,6 +1,8 @@
+ #include "test.h"
+ 
+-MAIN("hello\nworld",
++char* str = "hello\nworld";
++
++void test(buffer_t* buf, mark_t* cur) {
+     mark_t* other;
+     other = buffer_add_mark(buf, NULL, 0);
+     mark_move_beginning(cur);
+@@ -10,4 +12,4 @@ MAIN("hello\nworld",
+     ASSERT("endcol", 5, cur->col);
+     ASSERT("beg", buf->first_line, other->bline);
+     ASSERT("begcol", 0, other->col);
+-)
++}
+diff --git a/tests/unit/test_recalloc.c b/tests/unit/test_recalloc.c
+index cf00dd3..70ae56d 100644
+--- a/tests/unit/test_recalloc.c
++++ b/tests/unit/test_recalloc.c
+@@ -5,7 +5,9 @@ typedef struct {
+     int b;
+ } thing_t;
+ 
+-MAIN("",
++char* str = "";
++
++void test(buffer_t* buf, mark_t* cur) {
+     int i;
+     int is_all_zero;
+     thing_t* things;
+@@ -28,4 +30,4 @@ MAIN("",
+     }
+     ASSERT("zerod", 1, is_all_zero);
+ 
+-)
++}

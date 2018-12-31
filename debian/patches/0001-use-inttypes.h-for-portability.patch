@@ -1,0 +1,149 @@
+From: Adam Saponara <as@php.net>
+Date: Wed, 26 Dec 2018 11:50:23 -0500
+Subject: use `inttypes.h` for portability
+
+---
+ buffer.c          |  5 +++--
+ cmd.c             |  3 ++-
+ editor.c          | 13 +++++++------
+ tests/unit/test.h |  3 ++-
+ uscript.c         |  7 +++++--
+ 5 files changed, 19 insertions(+), 12 deletions(-)
+
+diff --git a/buffer.c b/buffer.c
+index 0d2b101..4601cd3 100644
+--- a/buffer.c
++++ b/buffer.c
+@@ -8,6 +8,7 @@
+ #include <unistd.h>
+ #include <fcntl.h>
+ #include <utlist.h>
++#include <inttypes.h>
+ #include "mlbuf.h"
+ 
+ static int _buffer_open_mmap(buffer_t* self, int fd, size_t size);
+@@ -1637,12 +1638,12 @@ static bint_t _buffer_bline_delete(bline_t* bline, bint_t col, bint_t num_chars)
+     // Clamp num_chars
+     safe_num_chars = MLBUF_MIN(bline->char_count - col, num_chars);
+     if (safe_num_chars != num_chars) {
+-        MLBUF_DEBUG_PRINTF("num_chars=%lu does not match safe_num_chars=%lu\n", num_chars, safe_num_chars);
++        MLBUF_DEBUG_PRINTF("num_chars=%" PRIdMAX " does not match safe_num_chars=%" PRIdMAX "\n", num_chars, safe_num_chars);
+     }
+ 
+     // Nothing to do if safe_num_chars is 0
+     if (safe_num_chars < 1) {
+-        MLBUF_DEBUG_PRINTF("safe_num_chars=%lu lt 1\n", safe_num_chars);
++        MLBUF_DEBUG_PRINTF("safe_num_chars=%" PRIdMAX " lt 1\n", safe_num_chars);
+         return MLBUF_OK;
+     }
+ 
+diff --git a/cmd.c b/cmd.c
+index 89d567f..996e8b2 100644
+--- a/cmd.c
++++ b/cmd.c
+@@ -2,6 +2,7 @@
+ #include <errno.h>
+ #include <fcntl.h>
+ #include <unistd.h>
++#include <inttypes.h>
+ #include "mle.h"
+ 
+ #define MLE_MULTI_CURSOR_MARK_FN(pcursor, pfn, ...) do {\
+@@ -1334,7 +1335,7 @@ static int _cmd_save(editor_t* editor, bview_t* bview, int save_as) {
+         if (rc == MLBUF_ERR) {
+             MLE_SET_ERR(editor, "save: %s", errno ? strerror(errno) : "failed");
+         } else {
+-            MLE_SET_INFO(editor, "save: Wrote %ld bytes", nbytes);
++            MLE_SET_INFO(editor, "save: Wrote %" PRIdMAX " bytes", nbytes);
+             // Notify event observers
+             editor_notify_observers(editor, "buffer:save", (void*)bview);
+         }
+diff --git a/editor.c b/editor.c
+index 394bfa6..1efa398 100644
+--- a/editor.c
++++ b/editor.c
+@@ -3,6 +3,7 @@
+ #include <termbox.h>
+ #include <uthash.h>
+ #include <utlist.h>
++#include <inttypes.h>
+ #include "mle.h"
+ #include "mlbuf.h"
+ 
+@@ -391,18 +392,18 @@ int editor_debug_dump(editor_t* editor, FILE* fp) {
+         if (!MLE_BVIEW_IS_EDIT(bview)) continue;
+         cursor_index = 0;
+         DL_FOREACH(bview->cursors, cursor) {
+-            fprintf(fp, "bview.%d.cursor.%d.mark.line_index=%ld\n", bview_index, cursor_index, cursor->mark->bline->line_index);
+-            fprintf(fp, "bview.%d.cursor.%d.mark.col=%ld\n", bview_index, cursor_index, cursor->mark->col);
++            fprintf(fp, "bview.%d.cursor.%d.mark.line_index=%" PRIdMAX "\n", bview_index, cursor_index, cursor->mark->bline->line_index);
++            fprintf(fp, "bview.%d.cursor.%d.mark.col=%" PRIdMAX "\n", bview_index, cursor_index, cursor->mark->col);
+             if (cursor->is_anchored) {
+-                fprintf(fp, "bview.%d.cursor.%d.anchor.line_index=%ld\n", bview_index, cursor_index, cursor->anchor->bline->line_index);
+-                fprintf(fp, "bview.%d.cursor.%d.anchor.col=%ld\n", bview_index, cursor_index, cursor->anchor->col);
++                fprintf(fp, "bview.%d.cursor.%d.anchor.line_index=%" PRIdMAX "\n", bview_index, cursor_index, cursor->anchor->bline->line_index);
++                fprintf(fp, "bview.%d.cursor.%d.anchor.col=%" PRIdMAX "\n", bview_index, cursor_index, cursor->anchor->col);
+             }
+             cursor_index += 1;
+         }
+         fprintf(fp, "bview.%d.cursor_count=%d\n", bview_index, cursor_index);
+         buffer = bview->buffer;
+-        fprintf(fp, "bview.%d.buffer.byte_count=%ld\n", bview_index, buffer->byte_count);
+-        fprintf(fp, "bview.%d.buffer.line_count=%ld\n", bview_index, buffer->line_count);
++        fprintf(fp, "bview.%d.buffer.byte_count=%" PRIdMAX "\n", bview_index, buffer->byte_count);
++        fprintf(fp, "bview.%d.buffer.line_count=%" PRIdMAX "\n", bview_index, buffer->line_count);
+         if (buffer->path) {
+             fprintf(fp, "bview.%d.buffer.path=%s\n", bview_index, buffer->path);
+         }
+diff --git a/tests/unit/test.h b/tests/unit/test.h
+index 8a5637d..fcbc39b 100644
+--- a/tests/unit/test.h
++++ b/tests/unit/test.h
+@@ -2,6 +2,7 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <locale.h>
++#include <inttypes.h>
+ #include "mle.h"
+ #include "mlbuf.h"
+ 
+@@ -28,7 +29,7 @@ int main(int argc, char **argv) { \
+     if ((expected) == (observed)) { \
+         printf("  \x1b[32mOK \x1b[0m %s\n", (testname)); \
+     } else { \
+-        printf("  \x1b[31mERR\x1b[0m %s expected=%lu observed=%lu\n", (testname), (bint_t)(expected), (bint_t)(observed)); \
++        printf("  \x1b[31mERR\x1b[0m %s expected=%" PRIdPTR " observed=%" PRIdPTR "\n", (testname), (intptr_t)(expected), (intptr_t)(observed)); \
+         exit(EXIT_FAILURE); \
+     } \
+ } while(0);
+diff --git a/uscript.c b/uscript.c
+index 61329bd..69a4b54 100644
+--- a/uscript.c
++++ b/uscript.c
+@@ -1,3 +1,4 @@
++#include <inttypes.h>
+ #include "mle.h"
+ 
+ #define MLE_USCRIPT_KEY "_uscript"
+@@ -377,9 +378,11 @@ static void* luaL_checkpointer(lua_State* L, int arg) {
+ 
+ static void* luaL_optpointer(lua_State* L, int arg, void* def) {
+     const char* ptr;
++    uintptr_t ptr_as_int;
+     ptr = luaL_optstring(L, arg, NULL);
+     if (ptr && strlen(ptr) > 0) {
+-        return (void*)strtoull(ptr, NULL, 16);
++        ptr_as_int = (uintptr_t)strtoull(ptr, NULL, 16);
++        return (void*)ptr_as_int;
+     }
+     return def;
+ }
+@@ -389,7 +392,7 @@ static void lua_pushpointer(lua_State* L, void* ptr) {
+     if (ptr == NULL) {
+         lua_pushnil(L);
+     } else {
+-        snprintf(ptrbuf, 32, "%llx", (unsigned long long)ptr);
++        snprintf(ptrbuf, 32, "%" PRIxPTR, (uintptr_t)ptr);
+         lua_pushstring(L, ptrbuf);
+     }
+ }

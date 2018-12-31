@@ -1,0 +1,8 @@
+0001-use-inttypes.h-for-portability.patch
+0002-fix-submodule-init-in-vendor-Makefile.patch
+0003-update-readme.patch
+0004-remove-MAIN-macro-from-unit-tests.patch
+0005-change-pointer-style.patch
+0006-fix-implicit-type-cast-bug-on-32-bit-systems.patch
+0007-define-PATH_MAX-if-not-present.patch
+0008-hide-tput-errors-e.g.-when-no-TERM.patch

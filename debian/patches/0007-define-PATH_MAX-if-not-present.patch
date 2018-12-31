@@ -1,0 +1,22 @@
+From: Adam Saponara <as@php.net>
+Date: Fri, 28 Dec 2018 15:09:01 -0500
+Subject: define PATH_MAX if not present
+
+---
+ mle.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mle.h b/mle.h
+index 6a808e5..11d9949 100644
+--- a/mle.h
++++ b/mle.h
+@@ -197,6 +197,9 @@ struct bview_s {
+     aproc_t *aproc;
+     cmd_func_t menu_callback;
+     int is_menu;
++    #ifndef PATH_MAX
++    #define PATH_MAX 4096
++    #endif
+     char init_cwd[PATH_MAX + 1];
+     bview_listener_t *listeners;
+     bview_t *top_next;
